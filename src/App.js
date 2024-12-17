@@ -1,20 +1,20 @@
 import React, { useState, useEffect } from "react";
-import { Table, Input, Layout, Row, Col, Typography, Space } from "antd";
-import "antd/dist/reset.css"; 
-import "./App.css"; 
+import { Table, Input, Layout, Row, Col, Typography, Space, Select } from "antd";
+import "antd/dist/reset.css";
+import "./App.css";
 import jsonData from "./op.json";
 
 const { Title } = Typography;
 const { Content } = Layout;
+const { Option } = Select;
 
 const App = () => {
-  const [data, setData] = useState([]); 
-  const [filteredData, setFilteredData] = useState([]); 
-  const [searchText, setSearchText] = useState(""); 
-  const [pagination, setPagination] = useState({ current: 1, pageSize: 10 }); 
+  const [data, setData] = useState([]);
+  const [filteredData, setFilteredData] = useState([]);
+  const [searchText, setSearchText] = useState("");
+  const [pagination, setPagination] = useState({ current: 1, pageSize: 10 });
 
   useEffect(() => {
-    
     const groupedData = jsonData.reduce((result, item) => {
       const groupKey = item.TENANT_ID || "Unknown";
       if (!result[groupKey]) result[groupKey] = [];
@@ -27,7 +27,7 @@ const App = () => {
       TENANT_ID: key,
       children: items.map((item, index) => ({
         ...item,
-        key: `${key}-${index}`, 
+        key: `${key}-${index}`,
       })),
     }));
 
@@ -43,7 +43,7 @@ const App = () => {
       .map((group) => {
         const children = group.children.filter((item) =>
           Object.values(item).some((value) =>
-            (value || "").toString().toLowerCase().includes(text)
+            (value || "").toString().includes(text)
           )
         );
         return children.length > 0
@@ -59,16 +59,35 @@ const App = () => {
     setPagination({ current: page, pageSize });
   };
 
+  const generateFilters = (dataIndex) => {
+    const uniqueValues = new Set();
+    jsonData.forEach((item) => {
+      if (item[dataIndex] !== undefined) {
+        uniqueValues.add(item[dataIndex]);
+      }
+    });
+    return Array.from(uniqueValues).map((value) => ({
+      text: value,
+      value,
+    }));
+  };
+
   const columns = [
     {
       title: "TENANT_ID",
       dataIndex: "TENANT_ID",
       key: "TENANT_ID",
+      filters: generateFilters("TENANT_ID"),
+      onFilter: (value, record) => record.TENANT_ID === value,
+      sorter: (a, b) => a.TENANT_ID.localeCompare(b.TENANT_ID),
     },
     {
-      title: "Data",
+      title: "RELATIONSHIP",
       dataIndex: "RELATIONSHIP",
       key: "RELATIONSHIP",
+      filters: generateFilters("RELATIONSHIP"),
+      onFilter: (value, record) => record.RELATIONSHIP === value,
+      sorter: (a, b) => (a.RELATIONSHIP || "").localeCompare(b.RELATIONSHIP || ""),
     },
     ...Object.keys(jsonData[0] || {})
       .filter((key) => key !== "TENANT_ID" && key !== "RELATIONSHIP")
@@ -76,6 +95,9 @@ const App = () => {
         title: key,
         dataIndex: key,
         key,
+        filters: generateFilters(key),
+        onFilter: (value, record) => record[key] === value,
+        sorter: (a, b) => (a[key] || "").toString().localeCompare((b[key] || "").toString()),
       })),
   ];
 
@@ -113,13 +135,12 @@ const App = () => {
                     showSizeChanger: true,
                   }}
                   expandable={{
-                   
                     rowExpandable: (record) => record.children?.length > 0,
                     expandedRowRender: (record) => (
                       <Table
-                        columns={columns.slice(1)} 
+                        columns={columns.slice(1)}
                         dataSource={record.children}
-                        pagination={false} 
+                        pagination={false}
                       />
                     ),
                   }}
